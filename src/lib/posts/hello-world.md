@@ -154,6 +154,7 @@ console.log('Not focused')
 console.log('Not focused')
 console.log('Focused') // [!code focus]
 console.log('Not focused')
+console.log('Focused') // [!code focus]
 console.log('Not focused')
 ```
 
