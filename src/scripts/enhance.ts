@@ -366,18 +366,18 @@ function getLangInfo(pre: HTMLElement) {
 
 export function initCodeGroups() {
   const groups = document.querySelectorAll('.vp-code-group');
-  
+
   groups.forEach(group => {
     // 1. 获取所有代码块容器 (.code-block-wrapper 是 enhance.ts 包裹后的结构)
     // 注意：如果 Shiki 直接渲染在 pre 上，可能需要调整选择器
     const wrappers = Array.from(group.querySelectorAll('.code-block-wrapper'));
-    
+
     if (wrappers.length < 2) return; // 少于2个不生成 Tabs
 
     // 2. 创建 Tabs 头部
     const tabsContainer = document.createElement('div');
     tabsContainer.className = 'tabs';
-    
+
     wrappers.forEach((wrapper, index) => {
       const pre = wrapper.querySelector('pre.shiki');
       if (!pre) return;
@@ -385,14 +385,14 @@ export function initCodeGroups() {
       // 👇 关键：直接从 pre 标签获取 Shiki 注入的语言名称
       // 之前 transformerAddLanguage 已经注入了 data-language="JavaScript"
       let title = pre.getAttribute('data-language') || 'Code';
-      
+
       // 如果 data-tabs 属性存在且有效，优先使用它（允许用户自定义标题）
       try {
         const customTabs = JSON.parse(group.getAttribute('data-tabs') || '[]');
         if (customTabs[index]) {
           title = customTabs[index];
         }
-      } catch (e) {}
+      } catch (e) { }
 
       // 为每个 wrapper 添加标识类，方便控制显隐
       wrapper.classList.add('vp-code-block');
@@ -402,18 +402,18 @@ export function initCodeGroups() {
       const tab = document.createElement('div');
       tab.className = `tab ${index === 0 ? 'active' : ''}`;
       tab.textContent = title;
-      
+
       // 点击事件
       tab.addEventListener('click', () => {
         // 切换 Tab 样式
         tabsContainer.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
-        
+
         // 切换代码块显示
         group.querySelectorAll('.vp-code-block').forEach(b => b.classList.remove('active'));
         wrapper.classList.add('active');
       });
-      
+
       tabsContainer.appendChild(tab);
     });
 
@@ -422,7 +422,15 @@ export function initCodeGroups() {
   });
 }
 export function initCodeBlocks() {
-  const pres = document.querySelectorAll('pre.shiki:not([data-enhanced])');
+  const pres = Array.from(
+    document.querySelectorAll('pre.shiki:not([data-enhanced])')
+  ).filter((pre: Element) => {
+    // 排除在 Twoslash 弹窗内的代码块
+    if (pre.closest('.twoslash-popup-container')) return false;
+    // 排除在代码组内的代码块（由 initCodeGroups 处理）
+    if (pre.closest('.vp-code-group')) return false;
+    return true;
+  }) as HTMLElement[];
 
   pres.forEach((pre) => {
     pre.setAttribute('data-enhanced', 'true');
@@ -537,10 +545,50 @@ export function initOnlineHtml() {
   });
 }
 
+export function initTwoslashPositioning() {
+  if (typeof document === 'undefined') return;
+
+  const updatePopupPosition = (container: Element) => {
+    const trigger = container.parentElement;
+    if (!trigger) return;
+
+    const rect = trigger.getClientRects()[0];
+    if (!rect) return;
+
+    const distanceToLeft = rect.left;
+    const distanceToRight = window.innerWidth - rect.right;
+    const distanceToTop = rect.top;
+
+    container.style.setProperty('--x', `${distanceToLeft}px`);
+    container.style.setProperty('--x1', `${distanceToRight}px`);
+    container.style.setProperty('--top', `${distanceToTop}px`);
+  };
+
+  // 初始化所有弹窗
+  document.querySelectorAll('.twoslash-popup-container').forEach(container => {
+    const trigger = container.parentElement;
+    if (trigger) {
+      trigger.addEventListener('mouseenter', () => updatePopupPosition(container));
+    }
+    // 初始计算一次
+    updatePopupPosition(container);
+  });
+
+  // 滚动时更新（防抖）
+  let scrollTimer: number;
+  document.addEventListener('scroll', () => {
+    clearTimeout(scrollTimer);
+    scrollTimer = window.setTimeout(() => {
+      document.querySelectorAll('.twoslash-popup-container').forEach(updatePopupPosition);
+    }, 50);
+  }, { passive: true });
+}
+
 if (typeof document !== 'undefined') {
   requestAnimationFrame(() => {
     initCodeBlocks();
     initCodeGroups();
     initOnlineHtml();
+    initTwoslashPositioning();
   });
 }

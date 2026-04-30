@@ -118,7 +118,7 @@ const {
 
 		<link rel="icon" href="/favicon.png" type="image/png" />
 	</head>
-	<body>
+	<body class="mkd">
 		{
 			isHome ? (
 				<ThemeToggle client:load />
@@ -127,7 +127,7 @@ const {
 			)
 		}
 		<slot />
-		<MusicPlayer client:load />
+		<!-- <MusicPlayer client:load /> -->
 		<!-- Giscus 评论：仅非首页加载 -->
 		{
 			!isHome && (

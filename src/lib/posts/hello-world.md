@@ -15,10 +15,9 @@ wordCount: 2576
 
 这是一个支持 **Markdown**、$\LaTeX$ 公式和代码高亮的博客系统。
 
-- [x] 111
-- [ ] 111
+为什么没有自定义组件呢？因为样式还没写……
 
-## 1. 数学公式 (KaTeX)
+## 数学公式 (KaTeX)
 
 行内公式：$E = mc^2$
 
@@ -36,61 +35,7 @@ $$
 \end{pmatrix}
 $$
 
-## 2. 代码高亮 (Shiki)
-
-```python
-def hello_world():
-    print("Hello, zym2013!")
-    return True
-```
-
-```ts twoslash
-// @errors: 2322
-const message: string = "Hello, Twoslash!";
-
-// 错误提示
-const num: number = "not a number"; // ❌ Type 'string' is not assignable
-
-// 泛型
-function identity<T>(arg: T): T {
-  return arg;
-}
-const result = identity(42); // T = number
-```
-
-```js
-console.log('Normal') // [!code highlight]
-throw new Error('Bug!') // [!code error]
-console.warn('Careful') // [!code warning]
-console.log('OK')
-```
-
-```js
-console.log('OK')
-console.log('Focused') // [!code focus]
-```
-
-<div class="vp-code-group" data-tabs='["config.js", "config.ts", "package.json"]'>
-
-```js [config.js]
-export default {
-  port: 3000
-}
-```
-
-```ts [config.ts]
-export default {
-  port: 3000
-}
-```
-
-```json [package.json]
-{
-  "name": "test"
-}
-```
-
-</div>
+## 代码高亮 (Shiki)
 
 ```cpp
 # include <bits/stdc++.h>
@@ -169,23 +114,16 @@ int main()
 }
 ```
 
+### 行高亮/错误/警告/Diff
+
 ```ts
 // [!code word:console:1]
-console.log('No errors or warnings')
-console.error('Error') // [!code error] [!code --]
-console.warn('Warning') // [!code warning] [!code ++]
-```
-
-```ts
+console.log('No errors, warnings or highlights')
+console.error('Error') // [!code error]
+console.warn('Warning') // [!code warning]
+console.log('Highlighted') // [!code highlight]
 console.log('hewwo') // [!code --]
 console.log('hello') // [!code ++]
-console.log('goodbye')
-```
-
-```ts
-console.log('Not highlighted')
-console.log('Highlighted') // [!code highlight]
-console.log('Not highlighted')
 ```
 
 ```ts
@@ -202,6 +140,25 @@ console.log('Highlighted')
 console.log('Not highlighted')
 ```
 
+```js {1,3-4}
+console.log('1')
+console.log('2')
+console.log('3')
+console.log('4')
+```
+
+### 代码聚焦
+
+```js
+console.log('Not focused')
+console.log('Not focused')
+console.log('Focused') // [!code focus]
+console.log('Not focused')
+console.log('Not focused')
+```
+
+### 字段突出
+
 ```ts
 // [!code word:Hello]
 const message = 'Hello World'
@@ -214,41 +171,13 @@ const message = 'Hello World'
 console.log(message) // prints Hello World
 ```
 
-```ts
-console.log('Not focused');
-console.log('Focused') // [!code focus]
-console.log('Not focused');
-```
-
-```ts
-// [!code focus:2]
-console.log('Focused')
-console.log('Focused')
-console.log('Not focused')
-```
-
-```ts
-console.log('No errors or warnings')
-console.error('Error') // [!code error]
-console.warn('Warning') // [!code warning]
-```
-
-```js {1,3-4}
-console.log('1')
-console.log('2')
-console.log('3')
-console.log('4')
-```
-
 ```js /Hello/
 const msg = 'Hello World'
 console.log(msg)
 console.log(msg) // 打印 Hello World
 ```
 
-```ts twoslash
-console.log('normal typescript twoslash')
-```
+### TypeScript 语法分析
 
 ```ts
 console.log('normal eslint twoslash')
@@ -268,14 +197,36 @@ console.log(x[0].substring(1))
 console.log(x[1].substring(1))
 ```
 
+### 代码组
+
+额，这里还没写完……
+
+<div class="vp-code-group" data-tabs='["config.js", "config.ts", "package.json"]'>
+
+```js [config.js]
+export default {
+  port: 3000
+}
+```
+
+```ts [config.ts]
+export default {
+  port: 3000
+}
+```
+
+```json [package.json]
+{
+  "name": "test"
+}
+```
+
+</div>
+
+## 自定义组件
+
 ::: info[==快去点个 star！==]{open}
-
-采用 GNU通用公共许可证 (GPL) 第3版 授权。详见 [LICENSE.md](https://github.com/wbw121124/wbw121124blog/blob/master/LICENSE.md) 文件。
-
-~~light mode 让我眼睛瞎了~~
-
-这是一个基于 Vue 3 和 Vite 构建的博客网站，使用作者自己编写的博客框架。
-
+hi
 :::
 
 ::: info
@@ -301,6 +252,8 @@ hi
 ::: details
 hi
 :::
+
+## Badge
 
 <span class="Badge tip">NEW</span> 这是一个新功能
 
