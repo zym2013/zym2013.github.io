@@ -1,0 +1,131 @@
+---
+// src/components/Markdown.astro
+import { remark } from 'remark';
+import remarkParse from 'remark-parse';
+import remarkRehype from 'remark-rehype';
+import rehypeStringify from 'rehype-stringify';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import rehypeShiki from '@shikijs/rehype';
+import remarkDirective from 'remark-directive';
+import { visit } from 'unist-util-visit';
+import rehypeSlug from 'rehype-slug';
+import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+import { transformerAddLanguage } from '../lib/shiki-lang-transformer';
+import {
+  transformerNotationHighlight,
+  transformerNotationErrorLevel,
+  transformerNotationFocus,
+} from '@shikijs/transformers';
+import { transformerMetaHighlight } from '../lib/shiki-meta-highlight';
+import { remarkCodeGroup } from '../lib/remark-code-group';
+import type { Parent } from 'unist';
+
+export interface TocItem {
+  text: string;
+  slug: string;
+  depth: number;
+}
+
+interface Props {
+  text: string;
+  slugger?: any; // 可选：传入外部的 slugger 以保持 ID 一致性
+}
+
+const { text, slugger } = Astro.props;
+
+// 内部使用的 slugger（如果外部未传入）
+const internalSlugger = slugger || (await import('github-slugger')).Slugger && new (await import('github-slugger')).Slugger();
+
+interface DirectiveNode extends Parent {
+  name: string;
+  attributes?: Record<string, any>;
+  children?: any[];
+  data?: {
+    hName?: string;
+    hProperties?: Record<string, any>;
+    directiveLabel?: boolean;
+  };
+}
+
+// 解析 Markdown
+const result = await remark()
+  .use(remarkParse)
+  .use(remarkMath)
+  .use(remarkDirective)
+  .use(remarkCodeGroup)
+  .use(remarkRehype, { allowDangerousHtml: true })
+  .use(rehypeSlug, slugger ? slugger  : {})
+  .use(rehypeAutolinkHeadings, {
+    behavior: 'append',
+    properties: { class: 'anchor-link', ariaLabel: '锚点链接' },
+    content: { type: 'text', value: ' #' },
+  })
+  .use(() => {
+    return (tree: Parent) => {
+      visit(tree, (node) => {
+        const dNode = node as unknown as DirectiveNode;
+        if (dNode.type === 'containerDirective') {
+          const data = dNode.data || (dNode.data = {});
+          data.hName = 'div';
+          data.hProperties = { class: `custom-block ${dNode.name}` };
+          if (dNode.children && dNode.children.length > 0) {
+            const firstChild = dNode.children[0] as unknown as DirectiveNode;
+            if (firstChild.type === 'paragraph' && firstChild.data?.directiveLabel) {
+              firstChild.data.hName = 'strong';
+              firstChild.data.hProperties = { class: 'custom-block-title' };
+              delete firstChild.data.directiveLabel;
+            }
+          }
+        } else if (dNode.type === 'textDirective') {
+          const data = dNode.data || (dNode.data = {});
+          data.hName = 'span';
+          data.hProperties = { class: `badge ${dNode.name}` };
+        }
+      });
+    };
+  })
+  .use(rehypeKatex)
+  .use(rehypeShiki, {
+    themes: { light: 'github-light', dark: 'github-dark' },
+    defaultColor: false,
+    lineNumbers: true,
+    transformers: [
+      transformerAddLanguage(),
+      transformerNotationHighlight(),
+      transformerNotationErrorLevel(),
+      transformerMetaHighlight(),
+      transformerNotationFocus(),
+    ],
+    parseMetaString: (str: string) => {
+      if (!str) return {};
+      const match = str.match(/\{([\d,-]+)\}/);
+      if (match) return { lines: match[1] };
+      return {};
+    },
+    langs: ['js', 'ts', 'python', 'bash', 'json', 'yaml', 'markdown', 'diff', 'cpp', 'html', 'css'],
+  })
+  .use(rehypeStringify, { allowDangerousHtml: true })
+  .process(text);
+
+const html = String(result);
+
+// 提取目录信息（从 result.data 或手动解析）
+// 注意：rehype-slug 不会自动返回 headings，我们需要自己解析或使用 remark-extract-toc
+// 这里简单实现：如果传入 slugger，则手动生成（实际项目中建议使用 remark-extract-toc）
+const toc: TocItem[] = [];
+if (result.data && (result.data as any).headings) {
+  toc.push(...(result.data as any).headings);
+}
+---
+
+<!-- 渲染 HTML 正文 -->
+<slot name="before" />
+<div class="markdown-body" set:html={html} />
+<slot name="after" />
+
+<!-- 通过 data 属性暴露 TOC 数据，供 JS 读取（可选方案） -->
+<template data-toc={JSON.stringify(toc)}></template>
+
+<!-- 导出类型供父组件使用 -->
+{toc && <script define:vars={{ toc }} is:inline>{/* 仅用于类型提示，实际不执行 */}</script>}

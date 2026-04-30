@@ -1,0 +1,83 @@
+---
+// src/pages/blog/[slug].astro
+import Layout from "../../layouts/BlogLayout.astro";
+import { getAllPosts } from "../../lib/blog";
+import { initMarkdownIt } from "../../lib/mkd-it"; // 👈 导入 markdown-it 初始化函数
+
+const allPosts = (await getAllPosts()).map((p) => ({
+  slug: p.slug,
+  title: p.title,
+}));
+
+export async function getStaticPaths() {
+  const posts = await getAllPosts();
+  return posts.map((post) => ({
+    params: { slug: post.slug },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+
+if (!post) {
+  return (Astro.response.status = 404);
+}
+
+// 👇 使用 markdown-it 渲染（集成 Shiki + Twoslash + KaTeX）
+const md = await initMarkdownIt();
+const html = md.render(post.body);
+---
+
+<Layout
+  title={post.title}
+  description={post.description}
+  pubDate={new Date(post.pubDate)}
+  tags={post.tags}
+  toc={post.headings}
+  content={html}
+  pageTitle={post.title}
+  isHome={false}
+  allPosts={allPosts}
+>
+  
+  <!-- 👇 客户端增强脚本（代码块折叠/复制/下载等，完全不动） -->
+  <script is:inline src="/scripts/enhance.ts"></script>
+</Layout>
+
+<script>
+  // 👇 客户端初始化：代码块增强 + Twoslash 交互 + KaTeX 渲染
+  if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 1. 代码块增强（折叠/复制/下载/分组）- 完全复用 enhance.ts
+      const { initCodeBlocks, initCodeGroups, initOnlineHtml } = await import('/src/scripts/enhance.ts');
+      initCodeBlocks();
+      // initCodeGroups();
+      initOnlineHtml();
+      
+      // 2. Twoslash 悬浮交互（鼠标悬停显示类型提示）
+      document.querySelectorAll('.twoslash-query').forEach(query => {
+        query.addEventListener('mouseenter', () => {
+          const popup = query.querySelector('.twoslash-popup');
+          if (popup) popup.classList.add('active');
+        });
+        query.addEventListener('mouseleave', () => {
+          const popup = query.querySelector('.twoslash-popup');
+          if (popup) popup.classList.remove('active');
+        });
+      });
+      
+      // 3. KaTeX 渲染数学公式（如果全局未加载）
+      if (typeof renderMathInElement !== 'undefined') {
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '\\[', right: '\\]', display: true },
+            { left: '$', right: '$', display: false },
+            { left: '\\(', right: '\\)', display: false },
+          ],
+          throwOnError: false,
+        });
+      }
+    });
+  }
+</script>

@@ -1,0 +1,151 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import PostCard from "../../components/PostCard.astro"; // 👈 引入新卡片组件
+import { getAllPosts } from "../../lib/blog.ts";
+
+const posts = await getAllPosts();
+---
+
+<Layout title="博客 - zym2013" description="技术博客与随笔">
+  <div class="center-wrap project-layout">
+    <main class="page-card blog-list-container">
+      
+      <!-- 头部标题 -->
+      <header class="blog-header">
+        <h1 id="site-title">
+          博客 <span class="title-subtle">of zym2013</span>
+        </h1>
+        <p class="blog-desc">记录技术成长与生活随笔</p>
+      </header>
+
+      <!-- 文章网格 -->
+      <section class="post-grid">
+        {posts.length === 0 ? (
+          <div class="empty-state">
+            <i class="fa-regular fa-folder-open"></i>
+            <p>暂无文章，敬请期待。</p>
+          </div>
+        ) : (
+          posts.map((post, index) => (
+            <PostCard
+              slug={post.slug}
+              title={post.title}
+              excerpt={post.description}
+              pubDate={post.pubDate}
+              wordCount={post.wordCount}
+              tags={post.tags}
+              icon={post.icon}
+              iconColor={post.iconColor}
+              category={post.category}
+              delay={index * 80}
+            />
+          ))
+        )}
+      </section>
+
+      <!-- 底部返回链接 -->
+      <div class="back-nav">
+        <a href="/" class="back-link">
+          <i class="fa-solid fa-arrow-left"></i> 返回首页
+        </a>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<style>
+  /* ===== 容器样式 ===== */
+  .blog-list-container {
+    max-width: 1200px;
+    padding: 2rem;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .blog-header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  .blog-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--foreground);
+  }
+
+  .title-subtle {
+    font-size: 1.2rem;
+    font-weight: 400;
+    color: var(--vp-c-text-3);
+    margin-left: 0.5rem;
+  }
+
+  .blog-desc {
+    color: var(--vp-c-text-2);
+    font-size: 1.1rem;
+  }
+
+  /* ===== 网格布局 ===== */
+  .post-grid {
+    display: grid;
+    /* 响应式：最小 320px，自动填充 */
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+  }
+
+  /* ===== 空状态 ===== */
+  .empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 0;
+    color: var(--vp-c-text-3);
+  }
+
+  .empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+
+  /* ===== 底部导航 ===== */
+  .back-nav {
+    display: flex;
+    justify-content: flex-start;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .back-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: gap 0.2s ease;
+  }
+
+  .back-link:hover {
+    gap: 0.8rem;
+  }
+
+  /* ===== 移动端适配 ===== */
+  @media (max-width: 768px) {
+    .blog-list-container {
+      padding: 1.5rem 1rem;
+    }
+    .blog-header h1 {
+      font-size: 2rem;
+    }
+    .post-grid {
+      grid-template-columns: 1fr; /* 手机端单列 */
+      gap: 1.2rem;
+    }
+  }
+</style>

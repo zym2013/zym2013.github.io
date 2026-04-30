@@ -1,0 +1,182 @@
+---
+// src/pages/lab/[slug].astro
+import MarkdownLayout from "../../layouts/MarkdownLayout.astro";
+import { getAllLabs } from "../../lib/lab";
+import { remark } from "remark";
+import remarkParse from "remark-parse";
+import remarkRehype from "remark-rehype";
+import rehypeStringify from "rehype-stringify";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import rehypeShiki from "@shikijs/rehype";
+import remarkDirective from "remark-directive";
+import { visit } from "unist-util-visit";
+import rehypeSlug from "rehype-slug";
+import rehypeAutolinkHeadings from "rehype-autolink-headings";
+import { transformerAddLanguage } from "../../lib/shiki-lang-transformer";
+import {
+  transformerNotationHighlight,
+  transformerNotationErrorLevel,
+  transformerNotationFocus,
+} from "@shikijs/transformers";
+import { transformerMetaHighlight } from '../../lib/shiki-meta-highlight';
+import { remarkCodeGroup } from "../../lib/remark-code-group";
+import type { Parent } from "unist";
+
+const allLabs = (await getAllLabs()).map((l) => ({
+  slug: l.slug,
+  title: l.title,
+}));
+
+interface DirectiveNode extends Parent {
+  name: string;
+  attributes?: Record<string, any>;
+  children?: any[];
+  data?: {
+    hName?: string;
+    hProperties?: Record<string, any>;
+    directiveLabel?: boolean;
+  };
+}
+
+export async function getStaticPaths() {
+  const labs = await getAllLabs();
+  return labs.map((lab) => ({
+    params: { slug: lab.slug },
+    props: { lab },
+  }));
+}
+
+const { lab } = Astro.props;
+
+if (!lab) {
+  return (Astro.response.status = 404);
+}
+
+// 👇 1. 仅渲染 Markdown 正文 (不再拼接 metaHtml)
+const result = await remark()
+  .use(remarkParse)
+  .use(remarkMath)
+  .use(remarkDirective)
+  .use(remarkCodeGroup)
+  .use(remarkRehype, { allowDangerousHtml: true })
+  .use(rehypeSlug)
+  .use(rehypeAutolinkHeadings, {
+    behavior: "append",
+    properties: { class: "anchor-link", ariaLabel: "锚点链接" },
+    content: { type: "text", value: " #" },
+  })
+  .use(() => {
+    return (tree) => {
+      visit(tree, (node) => {
+        const dNode = node as unknown as DirectiveNode;
+        if (dNode.type === "containerDirective") {
+          const data = dNode.data || (dNode.data = {});
+          data.hName = "div";
+          data.hProperties = { class: `custom-block ${dNode.name}` };
+          if (dNode.children && dNode.children.length > 0) {
+            const firstChild = dNode.children[0] as unknown as DirectiveNode;
+            if (firstChild.type === "paragraph" && firstChild.data?.directiveLabel) {
+              firstChild.data.hName = "strong";
+              firstChild.data.hProperties = { class: "custom-block-title" };
+              delete firstChild.data.directiveLabel;
+            }
+          }
+        } else if (dNode.type === "textDirective") {
+          const data = dNode.data || (dNode.data = {});
+          data.hName = "span";
+          data.hProperties = { class: `badge ${dNode.name}` };
+        }
+      });
+    };
+  })
+  .use(rehypeKatex)
+  .use(rehypeShiki, {
+    themes: { light: "github-light", dark: "github-dark" },
+    defaultColor: false,
+    lineNumbers: true,
+    transformers: [
+      transformerAddLanguage(),
+      transformerNotationHighlight(),
+      transformerNotationErrorLevel(),
+      transformerMetaHighlight(),
+      transformerNotationFocus()
+    ],
+    parseMetaString: (str) => {
+      if (!str) return {};
+      const match = str.match(/\{([\d,-]+)\}/);
+      if (match) return { lines: match[1] };
+      return {};
+    },
+    langs: ["js", "ts", "python", "bash", "json", "yaml", "markdown", "diff", "cpp", "html", "css"]
+  })
+  .use(rehypeStringify, { allowDangerousHtml: true })
+  .process(lab.body);
+
+const markdownHtml = String(result);
+---
+
+<!-- 👇 2. 在模板部分直接写元数据 HTML (Astro 原生支持，无解析错误) -->
+<MarkdownLayout
+  title={lab.title}
+  description={lab.shortDesc}
+  createdAt={lab.createdAt}
+  updatedAt={lab.updatedAt}
+  tags={lab.tags}
+  toc={[]}
+  pageTitle={lab.title}
+  isHome={false}
+  allPosts={allLabs}
+  backLinkText="返回实验室列表"
+  backLinkHref="/lab/"
+>
+  <!-- 元数据区域 -->
+  <div class="lab-meta-container">
+    <div class="lab-info-grid">
+      <div class="info-item">
+        <span class="label">分类</span>
+        <span class="value">{lab.category}</span>
+      </div>
+      <div class="info-item">
+        <span class="label">创建时间</span>
+        <span class="value">{new Date(lab.createdAt).toLocaleDateString("zh-CN")}</span>
+      </div>
+      <div class="info-item">
+        <span class="label">最后更新</span>
+        <span class="value">{new Date(lab.updatedAt).toLocaleDateString("zh-CN")}</span>
+      </div>
+      <div class="info-item">
+        <span class="label">标签</span>
+        <div class="tags">
+          {lab.tags.map(tag => <span class="tag-badge">#{tag}</span>)}
+        </div>
+      </div>
+    </div>
+    
+    {lab.links && lab.links.length > 0 && (
+      <div class="lab-links">
+        {lab.links.map(link => (
+          <a href={link.url} target="_blank" rel="noopener" class="btn-link">
+            <i class="fa-solid fa-link"></i> {link.name}
+          </a>
+        ))}
+      </div>
+    )}
+  </div>
+  <hr class="lab-divider" />
+
+  <!-- Markdown 正文 -->
+  <div set:html={markdownHtml} />
+</MarkdownLayout>
+
+<!-- 👇 3. 脚本放在组件外部 -->
+<script is:inline src="/scripts/enhance.ts"></script>
+
+<script>
+  import { initCodeBlocks, initOnlineHtml, initCodeGroups } from "../../scripts/enhance.ts";
+  document.addEventListener("DOMContentLoaded", () => {
+    // initCodeBlocks();
+    initOnlineHtml();
+    initCodeGroups();
+  });
+</script>

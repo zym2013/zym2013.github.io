@@ -1,0 +1,44 @@
+---
+// src/components/Toc.astro
+import type { TocItem } from './Markdown.astro';
+
+interface Props {
+  items: TocItem[];
+  type: 'mobile' | 'desktop';
+}
+
+const { items, type } = Astro.props;
+
+if (!items || items.length === 0) {
+  return null;
+}
+---
+
+{type === 'desktop' ? (
+  <!-- 桌面端：固定侧边栏 -->
+  <aside class="desktop-toc">
+    <div class="toc-inner">
+      <h3><i class="fa-solid fa-bookmark"></i> 目录</h3>
+      <ul>
+        {items.map((item) => (
+          <li style={`margin-left: ${(item.depth - 2) * 12}px`}>
+            <a href={`#${item.slug}`}>{item.text}</a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </aside>
+) : (
+  <!-- 移动端：抽屉内容 -->
+  <div class="drawer-content">
+    <ul>
+      {items.map((item) => (
+        <li style={`margin-left: ${(item.depth - 2) * 12}px`}>
+          <a href={`#${item.slug}`} class="mobile-toc-link">
+            {item.text}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}

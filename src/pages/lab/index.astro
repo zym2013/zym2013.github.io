@@ -1,0 +1,230 @@
+---
+// src/pages/lab/index.astro
+import Layout from "../../layouts/Layout.astro";
+import { getAllLabs, getLabFilters } from "../../lib/lab";
+import { slugify } from "../../lib/utils"; // 假设你有一个 slugify 工具
+
+const labs = await getAllLabs();
+const { categories, tags } = await getLabFilters();
+
+// 序列化数据传递给客户端
+const labsData = JSON.stringify(labs.map(l => ({
+  ...l,
+  createdAt: l.createdAt.toISOString(),
+  updatedAt: l.updatedAt.toISOString()
+})));
+---
+
+<Layout title="实验室 - zym2013" pageTitle="实验室">
+  <div class="center-wrap">
+    <main class="page-card lab-container">
+      <h1 class="page-title">🧪 我的实验室</h1>
+      
+      <!-- 搜索与筛选区 -->
+      <div class="lab-filters">
+        <input type="text" id="search-input" placeholder="搜索名称、关键词..." class="search-box" />
+        
+        <select id="category-select" class="filter-select">
+          <option value="">所有分类</option>
+          {categories.map(cat => <option value={cat}>{cat}</option>)}
+        </select>
+
+        <select id="tag-select" class="filter-select">
+          <option value="">所有标签</option>
+          {tags.map(tag => <option value={tag}>#{tag}</option>)}
+        </select>
+
+        <select id="time-sort" class="filter-select">
+          <option value="update-desc">最近更新</option>
+          <option value="create-desc">最近创建</option>
+          <option value="create-asc">最早创建</option>
+        </select>
+      </div>
+
+      <!-- 实验列表 -->
+      <div id="lab-list" class="lab-grid">
+        {labs.map((lab) => (
+          <article class="lab-card" 
+            data-title={lab.title.toLowerCase()}
+            data-keywords={lab.keywords.join(' ').toLowerCase()}
+            data-category={lab.category}
+            data-tags={lab.tags.join(',').toLowerCase()}
+            data-created={lab.createdAt.getTime()}
+            data-updated={lab.updatedAt.getTime()}
+          >
+            <div class="lab-card-header">
+              <h2><a href={`/lab/${lab.slug}/`}>{lab.title}</a></h2>
+              <span class="lab-category">{lab.category}</span>
+            </div>
+            <p class="lab-desc">{lab.shortDesc}</p>
+            <div class="lab-meta">
+              <div class="lab-tags">
+                {lab.tags.map(tag => <span class="tag">#{tag}</span>)}
+              </div>
+              <span class="lab-date">更新: {lab.updatedAt.toLocaleDateString()}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+      
+      <div id="no-results" class="hidden">没有找到匹配的实验 🧐</div>
+    </main>
+  </div>
+</Layout>
+
+<style>
+  .lab-container { max-width: 1000px; padding: 2rem; }
+  .page-title { margin-bottom: 2rem; text-align: center; }
+  
+  /* 筛选栏 */
+  .lab-filters {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+  .search-box {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--background);
+    color: var(--foreground);
+  }
+  .filter-select {
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--background);
+    color: var(--foreground);
+    cursor: pointer;
+  }
+
+  /* 列表网格 */
+  .lab-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .lab-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    background: var(--background);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+  }
+  .lab-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow);
+    border-color: var(--accent);
+  }
+  
+  .lab-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 0.5rem;
+  }
+  .lab-card h2 { font-size: 1.2rem; margin: 0; }
+  .lab-card h2 a { text-decoration: none; color: var(--foreground); }
+  .lab-card h2 a:hover { color: var(--accent); }
+  
+  .lab-category {
+    font-size: 0.75rem;
+    background: var(--muted);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--vp-c-text-2);
+  }
+  
+  .lab-desc {
+    font-size: 0.9rem;
+    color: var(--vp-c-text-2);
+    margin: 0.5rem 0 1rem;
+    flex-grow: 1;
+  }
+  
+  .lab-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--vp-c-text-3);
+  }
+  .lab-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .tag { color: var(--accent); }
+  
+  .hidden { display: none; }
+  #no-results { text-align: center; padding: 2rem; color: var(--vp-c-text-2); }
+</style>
+
+<script>
+  // 客户端搜索逻辑
+  document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('search-input');
+    const categorySelect = document.getElementById('category-select');
+    const tagSelect = document.getElementById('tag-select');
+    const timeSort = document.getElementById('time-sort');
+    const labList = document.getElementById('lab-list');
+    const cards = Array.from(document.querySelectorAll('.lab-card'));
+    const noResults = document.getElementById('no-results');
+
+    function filterAndSort() {
+      const searchTerm = searchInput.value.toLowerCase();
+      const selectedCategory = categorySelect.value;
+      const selectedTag = tagSelect.value;
+      const sortType = timeSort.value;
+
+      let visibleCount = 0;
+
+      // 1. 过滤
+      cards.forEach(card => {
+        const title = card.dataset.title || '';
+        const keywords = card.dataset.keywords || '';
+        const category = card.dataset.category || '';
+        const tags = card.dataset.tags || '';
+        
+        const matchesSearch = title.includes(searchTerm) || keywords.includes(searchTerm);
+        const matchesCategory = !selectedCategory || category === selectedCategory;
+        const matchesTag = !selectedTag || tags.split(',').includes(selectedTag.toLowerCase());
+
+        if (matchesSearch && matchesCategory && matchesTag) {
+          card.style.display = 'flex';
+          visibleCount++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      // 2. 排序 (仅对可见元素排序，为了性能可以先隐藏再重新append)
+      const visibleCards = cards.filter(c => c.style.display !== 'none');
+      
+      visibleCards.sort((a, b) => {
+        const timeA = sortType === 'create-asc' ? parseInt(a.dataset.created) : parseInt(a.dataset.updated);
+        const timeB = sortType === 'create-asc' ? parseInt(b.dataset.created) : parseInt(b.dataset.updated);
+        
+        if (sortType.endsWith('asc')) {
+          return timeA - timeB;
+        } else {
+          return timeB - timeA;
+        }
+      });
+
+      // 重新排列 DOM
+      visibleCards.forEach(card => labList.appendChild(card));
+
+      // 3. 显示无结果提示
+      noResults.classList.toggle('hidden', visibleCount > 0);
+    }
+
+    // 绑定事件
+    searchInput.addEventListener('input', filterAndSort);
+    categorySelect.addEventListener('change', filterAndSort);
+    tagSelect.addEventListener('change', filterAndSort);
+    timeSort.addEventListener('change', filterAndSort);
+  });
+</script>

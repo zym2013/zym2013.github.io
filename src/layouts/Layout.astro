@@ -1,0 +1,159 @@
+---
+import "../styles/global.css";
+import ThemeToggle from "../components/ThemeToggle.vue";
+import TopBar from "../components/TopBar.vue";
+import SiteFooter from "../components/SiteFooter.vue";
+import MusicPlayer from '../components/MusicPlayer.vue';
+// import GiscusComments from '../components/GiscusComments.vue';
+
+interface Props {
+	title?: string;
+	description?: string;
+	pageTitle?: string;
+	isHome?: boolean;
+	allPosts?: Array<{ slug: string; title: string }>;
+}
+
+const {
+	title = "zym2013",
+	description = "zym2013 的个人主页",
+	pageTitle = title,
+	isHome = false,
+	allPosts = [],
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={Astro.site} />
+		<meta name="twitter:card" content="summary" />
+		<link
+			rel="alternate"
+			type="application/rss+xml"
+			title="zym2013 的博客 RSS"
+			href="/rss.xml"
+		/>
+		<link
+			rel="icon"
+			type="image/png"
+			href="https://cdn.luogu.com.cn/upload/image_hosting/ydayi19u.png?x-oss-process=image/rounded-corners,r_360"
+			referrerpolicy="no-referrer"
+			crossorigin="anonymous"
+		/>
+		<link
+			rel="stylesheet"
+			href="https://cdn.jsdmirror.com/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css"
+		/>
+		<link
+			rel="stylesheet"
+			href="https://cdn.jsdmirror.com/ajax/libs/lxgw-wenkai-screen-webfont/1.7.0/lxgwwenkaiscreenr.css"
+		/>
+		<link
+			rel="stylesheet"
+			href="https://cdn.jsdmirror.com/ajax/libs/nprogress/0.2.0/nprogress.min.css"
+		/>
+		<link
+			rel="stylesheet"
+			href="https://cdn.jsdmirror.com/npm/katex@0.16.9/dist/katex.min.css"
+		/>
+		<style>
+			:root,
+			html[data-theme="light"] {
+				--background: #fdfdfd;
+				--foreground: #282728;
+				--accent: #006cac;
+				--muted: #e6e6e6;
+				--border: #ece9e9;
+				--shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+				--link: #006cac;
+				--link-hover: #002f5a;
+			}
+
+			html[data-theme="dark"] {
+				--background: #212737;
+				--foreground: #eaedf3;
+				--accent: #ff6b01;
+				--muted: #343f60;
+				--border: #ab4b08;
+				--shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+				--link: #ff6b01;
+				--link-hover: #e46e19;
+			}
+		</style>
+		<script
+			is:inline
+			src="https://cdn.jsdmirror.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"
+		></script>
+		<script is:inline>
+			document.addEventListener("DOMContentLoaded", function () {
+				if (typeof NProgress !== "undefined") {
+					NProgress.configure({
+						showSpinner: false,
+						speed: 200,
+						minimum: 0.3,
+					});
+					NProgress.start();
+					window.addEventListener("load", function () {
+						NProgress.done();
+					});
+					window.addEventListener("pageshow", function (event) {
+						if (event.persisted) {
+							NProgress.start();
+							setTimeout(function () {
+								NProgress.done();
+							}, 100);
+						}
+					});
+				}
+			});
+		</script>
+
+		<link rel="icon" href="/favicon.png" type="image/png" />
+	</head>
+	<body>
+		{
+			isHome ? (
+				<ThemeToggle client:load />
+			) : (
+				<TopBar pageTitle={pageTitle} client:load />
+			)
+		}
+		<slot />
+		<MusicPlayer client:load />
+		<!-- Giscus 评论：仅非首页加载 -->
+		{
+			!isHome && (
+				<section class="giscus-section">
+					<div class="giscus-container">
+						<script
+							src="https://giscus.app/client.js"
+							data-repo="zym2013/zym2013.github.io"
+							data-repo-id="R_kgDOSASdow"
+							data-category="General"
+							data-category-id="DIC_kwDOSASdo84C7tBh"
+							data-mapping="url"
+							data-strict="0"
+							data-reactions-enabled="1"
+							data-emit-metadata="1"
+							data-input-position="top"
+							data-theme="preferred_color_scheme"
+							data-lang="zh-CN"
+							data-loading="lazy"
+							crossorigin="anonymous"
+							async
+						/>
+					</div>
+				</section>
+			)
+		}
+		<SiteFooter client:load isHome={isHome} />
+	</body>
+</html>

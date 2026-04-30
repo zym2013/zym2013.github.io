@@ -1,0 +1,60 @@
+---
+// src/pages/project/index.astro
+import Layout from "../../layouts/Layout.astro";
+import ProjectCard from "../../components/ProjectCard.vue";
+
+// 项目数据
+const projects = [
+	{
+		title: "111",
+		description:
+			"111",
+		image: "https://store-images.s-microsoft.com/image/apps.50491.1706fdf8-00f7-4aca-98d1-a98062b12df2.049fb4b3-ef8b-4029-8ae4-b43672ea7d1e.d35cef48-6aa9-41c4-b24f-dcff37ade949",
+		status: "maintenance",
+		demoUrl: "#",
+		sourceUrl: "#",
+	},
+	{
+		title: "111",
+		description:
+			"111",
+		image: "https://picsum.photos/seed/bingphoto/600/360",
+		status: "active",
+		demoUrl: "#",
+		sourceUrl: "#",
+	}
+];
+---
+
+<Layout title="项目 - zym2013" description="zym2013 的项目集合。">
+	<div class="center-wrap project-layout">
+		<main class="page-card" role="main" aria-labelledby="site-title">
+			<header class="d-flex flex-column">
+				<h1 id="site-title" class="mb-2">
+					项目<span class="title-subtle">of zym2013</span>
+				</h1>
+				<nav class="links" aria-label="主要链接"></nav>
+			</header>
+			<section class="projects-row">
+				{
+					projects.map((project) => (
+						<ProjectCard
+							client:only="vue"
+							title={project.title}
+							description={project.description}
+							image={project.image}
+							status={project.status as "active" | "maintenance"}
+							demoUrl={project.demoUrl}
+							sourceUrl={project.sourceUrl}
+						/>
+					))
+				}
+			</section>
+			<div class="d-flex justify-content-start mt-4">
+				<a href="/" class="back-link">
+					<i class="fa-solid fa-arrow-left"></i> 返回首页
+				</a>
+			</div>
+		</main>
+	</div>
+</Layout>

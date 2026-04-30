@@ -1,0 +1,230 @@
+---
+// src/components/PostCard.astro
+import { parseColor } from '../lib/color';
+
+interface Props {
+  slug: string;
+  title: string;
+  excerpt: string;
+  pubDate: Date | string;
+  wordCount: number;
+  tags: string[];
+  
+  // 👇 颜色相关字段
+  icon?: string;
+  iconColor?: string;      // 支持 '#ff6b6b' 或 '#ff6b6bB3' 或 'var(--accent)'
+  category?: string;
+  categoryColor?: string;  // 分类文字颜色（可选）
+  
+  delay?: number;
+}
+
+const {
+  slug,
+  title,
+  excerpt,
+  pubDate,
+  wordCount,
+  tags,
+  icon = 'fa-solid fa-feather-pointed',
+  iconColor,               // 不传则用默认
+  category = '未分类',
+  categoryColor,
+  delay = 0
+} = Astro.props;
+
+// 👇 解析颜色：自动添加 70% 透明度
+const finalIconColor = parseColor(iconColor, '#64748b');  // 默认石板灰
+const finalCategoryColor = parseColor(categoryColor, '#64748b');
+
+const formatDate = (date: Date | string): string => {
+  const d = new Date(date);
+  return d.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).replace(/\//g, '-');
+};
+---
+
+<a href={`/blog/${slug}/`} class="post-card" style={`--delay: ${delay}ms`}>
+  <div class="card-content">
+    <!-- 顶部：日期 + 字数 -->
+    <div class="card-meta">
+      <span class="date">{formatDate(pubDate)}</span>
+      <span class="separator">·</span>
+      <span class="word-count">{wordCount} 字</span>
+    </div>
+
+    <!-- 标题 -->
+    <h3 class="card-title">{title}</h3>
+
+    <!-- 摘要 -->
+    <p class="card-excerpt">{excerpt}</p>
+
+    <!-- 分类 + 标签（纯文本，无框） -->
+    <div class="card-tags">
+      <span class="category" style={`color: ${finalCategoryColor}`}>{category}</span>
+      {tags.map(tag => {
+        const tagName = tag.startsWith('#') ? tag : `#${tag}`;
+        return <span class="tag">{tagName}</span>;
+      })}
+    </div>
+  </div>
+
+  <!-- 右下角倾斜图标 -->
+  <div class="card-icon" style={`--icon-color: ${finalIconColor}`}>
+    <i class={icon}></i>
+  </div>
+</a>
+
+<style>
+  /* ===== 卡片基础样式 ===== */
+  .post-card {
+    position: relative;
+    display: block;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-decoration: none;
+    color: var(--foreground);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    overflow: hidden;
+    
+    opacity: 0;
+    transform: translateY(20px);
+    animation: card-fade-in 0.6s ease forwards;
+    animation-delay: var(--delay, 0ms);
+  }
+
+  .post-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    border-color: var(--accent);
+  }
+
+  /* 触摸/悬停时图标：变大 + 更斜，但不变色 */
+  .post-card:hover .card-icon i,
+  .post-card:active .card-icon i {
+    transform: rotate(-18deg) scale(1.15); /* 更斜(-18°) + 变大(1.15x) */
+    /* 👆 注意：不改变 color，保持原色 */
+  }
+
+  .card-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ===== 顶部元数据 ===== */
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--vp-c-text-3);
+    margin-bottom: 0.8rem;
+  }
+
+  .separator { color: var(--border); }
+
+  /* ===== 标题 ===== */
+  .card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 0.6rem;
+    color: var(--foreground);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ===== 摘要 ===== */
+  .card-excerpt {
+    font-size: 0.95rem;
+    color: var(--vp-c-text-2);
+    margin: 0 0 1rem;
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ===== 分类 + 标签（纯文本，无框） ===== */
+  .card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  /* 分类名：稍粗，颜色略深 */
+  .category {
+    font-weight: 500;
+    color: var(--foreground);
+  }
+
+  /* 标签：纯文本，# 号 + 标签名，无背景无边框 */
+  .tag {
+    color: var(--vp-c-text-2);
+    transition: color 0.2s ease;
+  }
+
+  .post-card:hover .tag {
+    color: var(--accent); /* 悬停时标签变色，但图标不变色 */
+  }
+
+  /* ===== 右下角倾斜图标 ===== */
+  .card-icon {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 0;
+    width: 80px;
+    height: 80px;
+    opacity: 0;
+    filter: blur(8px);
+    animation: icon-fade-in 0.8s ease forwards;
+    animation-delay: calc(var(--delay, 0ms) + 200ms);
+  }
+
+  .card-icon i {
+    font-size: 4rem;
+    color: var(--icon-color, var(--vp-c-text-3)); /* 使用自定义颜色 */
+    
+    /* 初始：稍微向左倾斜 (-10°) */
+    transform: rotate(-10deg);
+    transition: transform 0.3s ease; /* 👈 只过渡 transform，不过渡 color */
+  }
+
+  /* ===== 关键帧动画 ===== */
+  @keyframes card-fade-in {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes icon-fade-in {
+    to { opacity: 1; filter: blur(0); }
+  }
+
+  /* ===== 移动端适配 ===== */
+  @media (max-width: 768px) {
+    .post-card { padding: 1.2rem; }
+    .card-title { font-size: 1.1rem; }
+    .card-excerpt { font-size: 0.9rem; -webkit-line-clamp: 2; }
+    .card-tags { gap: 0.3rem; font-size: 0.8rem; }
+  }
+
+  /* ===== 暗色模式适配 ===== */
+  html[data-theme="dark"] .post-card {
+    background: var(--background);
+    border-color: var(--border);
+  }
+  html[data-theme="dark"] .post-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+</style>

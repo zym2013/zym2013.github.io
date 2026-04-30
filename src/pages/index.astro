@@ -1,0 +1,11 @@
+---
+// src/pages/index.astro
+import Layout from "../layouts/Layout.astro";
+import ThemeToggle from "../components/ThemeToggle.vue";
+import HomePage from "../components/HomePage.vue";
+---
+
+<Layout title="zym2013" description="个人主页 · 编程项目与技术分享" isHome={true}>
+	<ThemeToggle client:load />
+	<HomePage client:load name="zym2013" />
+</Layout>
