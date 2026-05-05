@@ -1,0 +1,160 @@
+---
+// src/layouts/Layout.astro
+import "../styles/global.css";
+import "@fortawesome/fontawesome-free/css/all.min.css";
+import "nprogress"
+import "lxgw-wenkai-screen-webfont/lxgwwenkaiscreenr.css";
+import { config, type TopBarConfig, type SiteConfig } from '../lib/config';
+import TopBar from "../components/TopBar.vue";
+import SiteFooter from "../components/SiteFooter.vue";
+import MusicPlayer from '../components/MusicPlayer.vue';
+import Sidebar from '../components/Sidebar.vue';
+import Giscus from '../components/Giscus.astro';
+
+const serializableConfig: SiteConfig = JSON.parse(JSON.stringify(config));
+const siteName = config.site?.name;
+const siteDesc = config.site?.description || '个人主页 · 编程项目与技术分享';
+const siteUrl = config.site?.url || Astro.site?.origin || '';
+const seoKeywords = config.site?.seo?.keywords?.join(', ') || '';
+const seoAuthor = config.site?.seo?.author;
+const twitterHandle = config.site?.seo?.twitter || '';
+const ogImage = config.site?.seo?.ogImage || '/og-default.png';
+const blogAuthor = config.blog?.authorName || siteName;
+const blogBio = config.blog?.pageBio || siteDesc;
+const giscus = config.site?.services?.giscus || {};
+interface Props {
+  title?: string;
+  description?: string;
+  pageTitle?: string;
+  isHome?: boolean;
+  allPosts?: Array<{ slug: string; title: string }>;
+  frontmatter?: {
+    title?: string;
+    description?: string;
+    pubDate?: string | Date;
+    tags?: string[];
+    toc?: Array<{ text: string; slug: string; depth: number }>;
+  };
+  topbarConfig?: TopBarConfig;
+}
+const {
+  title = blogAuthor,
+  description = blogBio,
+  pageTitle,
+  isHome = false,
+  allPosts = [],
+  frontmatter = {},
+  topbarConfig: incomingTopbarConfig,
+} = Astro.props as Props;
+const finalTitle = pageTitle || frontmatter?.title || title;
+const finalDescription = frontmatter?.description || description;
+const finalKeywords = frontmatter?.tags?.join(', ') || seoKeywords;
+
+const finalTopbarConfig = incomingTopbarConfig || config.topbar || {};
+---
+
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    
+    <!-- 动态标题 -->
+    <title>{finalTitle}</title>
+    
+    <!-- 动态 SEO Meta -->
+    <meta name="description" content={finalDescription} />
+    <meta name="keywords" content={finalKeywords} />
+    <meta name="author" content={seoAuthor} />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={finalTitle} />
+    <meta property="og:description" content={finalDescription} />
+    <meta property="og:url" content={Astro.url} />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:image" content={new URL(ogImage, siteUrl).href} />
+    <meta property="og:locale" content="zh_CN" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={finalTitle} />
+    <meta name="twitter:description" content={finalDescription} />
+    {twitterHandle && <meta name="twitter:site" content={twitterHandle} />}
+    <meta name="twitter:image" content={new URL(ogImage, siteUrl).href} />
+
+    <!-- 图标 -->
+    <link rel="icon" type="image/webp" href="/icon.webp" referrerpolicy="no-referrer" crossorigin="anonymous" />
+    
+    <script type="text/javascript">
+        if (!!window.ActiveXObject || "ActiveXObject" in window) { //is IE?
+            alert('朋友，上古浏览器不支持呢~');
+        }
+    </script>
+    
+    <!-- NProgress -->
+    <script is:inline>
+      document.addEventListener("DOMContentLoaded", function () {
+        if (typeof NProgress !== "undefined") {
+          NProgress.configure({ showSpinner: false, speed: 200, minimum: 0.3 });
+          NProgress.start();
+          window.addEventListener("load", () => NProgress.done());
+          window.addEventListener("pageshow", (event) => {
+            if (event.persisted) { NProgress.start(); setTimeout(() => NProgress.done(), 100); }
+          });
+        }
+      });
+    </script>
+  </head>
+
+  <body class="mkd">
+    <Sidebar 
+        client:only="vue"
+        links={[
+          { href: '/', icon: 'home', label: '首页' },
+          { href: '/blog', icon: 'book', label: '博客' },
+          { href: '/project', icon: 'folder', label: '项目' },
+        ]}
+        avatar-src="/icon.webp"
+        avatar-alt={siteName || 'Avatar'}
+      />
+    {
+    isHome ? (
+      <TopBar 
+        client:only="vue"
+        config={finalTopbarConfig} 
+        pageTitle={finalTitle} 
+        :allPosts={allPosts}
+        is-home={true}
+      />
+    ) : (
+      <TopBar 
+        client:only="vue"
+        config={finalTopbarConfig} 
+        pageTitle={finalTitle} 
+        :allPosts={allPosts}
+        is-home={false}
+      />
+    )
+  }
+    
+    <slot />
+    
+    <!-- <MusicPlayer client:load /> -->
+    <!-- {
+      !isHome && giscus.repo && (
+        <section class="giscus-section">
+          <Giscus 
+            category={giscus.category}
+            categoryId={giscus.categoryId}
+            repo={giscus.repo}
+            repoId={giscus.repoId}
+            mapping={giscus.mapping}
+          />
+        </section>
+      )
+    } -->
+    
+    {!isHome && (<SiteFooter client:load config={serializableConfig} />)}
+  </body>
+</html>

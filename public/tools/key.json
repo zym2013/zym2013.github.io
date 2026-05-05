@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "salt": "ICSeYlrDwQ2v58WKBUiyUA==",
+  "iterations": 100000,
+  "items": [
+    {
+      "id": "item_1",
+      "name": "Github - zym2013",
+      "encryptedSecret": "7pgl1JsnI4Mi9BpDFoMezNTtljLRSROojaWhfpFtdfg=",
+      "iv": "M+WEGx12amhJLpM/",
+      "metadata": {
+        "account": "3396619503@qq.com",
+        "url": "https://github.com",
+        "notes": "zym2013"
+      }
+    },
+    {
+      "id": "item_2",
+      "name": "Luogu - zhangyimin2013",
+      "encryptedSecret": "ALi2NaU/Cp62Er5pR2tH4Nhcc/MFEgW73+WrxkIrzEo=",
+      "iv": "EMqVfQ377TI3FEjv",
+      "metadata": {
+        "account": "zhangyimin12345@yeah.net",
+        "url": "https://www.luogu.com.cn",
+        "notes": "zhangyimin2013"
+      }
+    }
+  ]
+}

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOTP 验证码生成器</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: var(--text-color);
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            color: #2c3e50;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        .totp-display {
+            margin: 20px 0;
+        }
+
+        #totpOutput {
+            font-size: 2.5rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            font-family: "Courier New", Courier, monospace;
+            color: var(--primary-color);
+            min-height: 3rem;
+        }
+
+        .timer-container {
+            margin-top: 10px;
+            height: 4px;
+            background-color: #e9ecef;
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #progressBar {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 100%;
+            transition: width 1s linear;
+        }
+
+        .timer-text {
+            font-size: 0.875rem;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .error {
+            color: #dc3545;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>TOTP 验证码</h2>
+        <div class="input-group">
+            <input type="text" id="secretInput" placeholder="请输入 Base32 密钥" autocomplete="off">
+        </div>
+        
+        <div class="totp-display">
+            <div id="totpOutput">------</div>
+            <div class="timer-container">
+                <div id="progressBar"></div>
+            </div>
+            <div class="timer-text">剩余时间: <span id="timeLeft">30</span>s</div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // --- 核心算法部分 (保持不变) ---
+            function base32Decode(base32Str) {
+                const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+                let cleaned = base32Str.trim().toUpperCase().replace(/=+$/, '');
+                if (cleaned.length === 0) return new Uint8Array(0);
+                
+                let bits = 0;
+                let value = 0;
+                let output = [];
+                for (let i = 0; i < cleaned.length; i++) {
+                    const ch = cleaned[i];
+                    const idx = alphabet.indexOf(ch);
+                    if (idx === -1) {
+                        throw new Error(`无效的 Base32 字符: ${ch}`);
+                    }
+                    value = (value << 5) | idx;
+                    bits += 5;
+                    while (bits >= 8) {
+                        bits -= 8;
+                        const byte = (value >> bits) & 0xFF;
+                        output.push(byte);
+                    }
+                }
+                return new Uint8Array(output);
+            }
+
+            async function hmacSha1(keyBytes, messageBytes) {
+                const cryptoKey = await window.crypto.subtle.importKey(
+                    "raw",
+                    keyBytes,
+                    { name: "HMAC", hash: "SHA-1" },
+                    false,
+                    ["sign"]
+                );
+                const signature = await window.crypto.subtle.sign(
+                    "HMAC",
+                    cryptoKey,
+                    messageBytes
+                );
+                return new Uint8Array(signature);
+            }
+
+            function dynamicTruncate(hmacResult) {
+                const offset = hmacResult[19] & 0x0F;
+                const binary = ((hmacResult[offset] & 0x7F) << 24) |
+                               ((hmacResult[offset + 1] & 0xFF) << 16) |
+                               ((hmacResult[offset + 2] & 0xFF) << 8) |
+                               (hmacResult[offset + 3] & 0xFF);
+                const otp = binary % 1000000;
+                return otp.toString().padStart(6, '0');
+            }
+
+            function getCurrentCounter() {
+                const nowSec = Math.floor(Date.now() / 1000);
+                const step = 30;
+                return Math.floor(nowSec / step);
+            }
+
+            function counterToBytes(counter) {
+                const bytes = new Uint8Array(8);
+                for (let i = 7; i >= 0; i--) {
+                    bytes[i] = counter & 0xFF;
+                    counter = counter >> 8;
+                }
+                return bytes;
+            }
+
+            async function generateTOTP(base32Secret) {
+                if (!base32Secret || base32Secret.trim() === "") {
+                    throw new Error("Base32 密钥不能为空");
+                }
+                let keyBytes;
+                try {
+                    keyBytes = base32Decode(base32Secret);
+                } catch (e) {
+                    throw new Error(`Base32 解码失败: ${e.message}`);
+                }
+                if (keyBytes.length === 0) {
+                    throw new Error("解码后密钥为空，请提供有效的 Base32 密钥");
+                }
+                const counter = getCurrentCounter();
+                const msgBytes = counterToBytes(counter);
+                let hmac;
+                try {
+                    hmac = await hmacSha1(keyBytes, msgBytes);
+                } catch (e) {
+                    throw new Error(`HMAC 计算失败: ${e.message}`);
+                }
+                const otp = dynamicTruncate(hmac);
+                return otp;
+            }
+
+            // --- UI 交互与倒计时逻辑 ---
+            const secretInput = document.getElementById('secretInput');
+            const totpOutput = document.getElementById('totpOutput');
+            const progressBar = document.getElementById('progressBar');
+            const timeLeftSpan = document.getElementById('timeLeft');
+            
+            let lastCounter = -1; // 用于跟踪时间步长变化，避免不必要的重复计算
+
+            async function updateInterface() {
+                const rawSecret = secretInput.value;
+                const trimmedSecret = rawSecret.trim();
+
+                // 1. 处理空输入情况
+                if (!trimmedSecret) {
+                    totpOutput.textContent = "";
+                    totpOutput.classList.remove('error');
+                    progressBar.style.width = '0%';
+                    timeLeftSpan.textContent = "0";
+                    return;
+                }
+
+                // 2. 计算当前时间步长和剩余时间
+                const nowSec = Math.floor(Date.now() / 1000);
+                const step = 30;
+                const currentCounter = Math.floor(nowSec / step);
+                const remainingTime = step - (nowSec % step);
+
+                // 3. 更新倒计时 UI (每秒必须执行)
+                const percentage = (remainingTime / step) * 100;
+                progressBar.style.width = `${percentage}%`;
+                timeLeftSpan.textContent = remainingTime;
+                
+                // 颜色警告：最后5秒变红
+                if (remainingTime <= 5) {
+                    progressBar.style.backgroundColor = '#dc3545';
+                } else {
+                    progressBar.style.backgroundColor = '#007bff';
+                }
+
+                // 4. 如果时间步长发生变化，重新计算 TOTP
+                if (currentCounter !== lastCounter) {
+                    lastCounter = currentCounter;
+                    try {
+                        const otpCode = await generateTOTP(trimmedSecret);
+                        totpOutput.textContent = otpCode;
+                        totpOutput.classList.remove('error');
+                    } catch (err) {
+                        totpOutput.textContent = `错误`;
+                        totpOutput.title = err.message; // 鼠标悬停显示详细错误
+                        totpOutput.classList.add('error');
+                        // 发生错误时不重置 lastCounter，以便下一秒重试或用户修正输入
+                    }
+                }
+            }
+
+            // 监听输入框变化，立即尝试更新
+            secretInput.addEventListener('input', () => {
+                lastCounter = -1; // 强制下一次循环重新计算
+                updateInterface();
+            });
+
+            // 启动定时器，每秒刷新一次
+            setInterval(updateInterface, 1000);
+            
+            // 初始化调用一次
+            updateInterface();
+
+        })();
+    </script>
+</body>
+</html>
