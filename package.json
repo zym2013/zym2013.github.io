@@ -11,7 +11,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "bgh": "git add . && git commit -m \"Update.\" && git push",
+    "bgh": "git add . && (git commit -m \"Update.\" || true) && git push",
     "savezip": "npx -y bestzip project.zip . --exclude node_modules --exclude .astro --exclude dist --exclude .git",
     "fi": "pnpm i --ignore-scripts",
     "gc": "git config --global user.email \"3396619503@qq.com\" && git config --global user.name \"zym2013\""
